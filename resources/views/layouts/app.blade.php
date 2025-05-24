@@ -32,9 +32,10 @@
             width: 20px;
             height: 20px;
             border: 1px solid #ddd;
+            cursor: pointer;
         }
         .cell-0 {
-            background-color: white;
+            background-color: #f0f0f0; 
         }
         .cell-1 {
             background-color: #4CAF50; 
@@ -43,16 +44,32 @@
             background-color: #2196F3; 
         }
         .cell-3 {
-            background-color: #F44336;
+            background-color: #FFC107; 
         }
-        .map-list {
-            margin: 20px 0;
+        .map-legend {
+            display: flex;
+            margin-bottom: 15px;
         }
-        .map-item {
-            padding: 10px;
-            margin: 5px 0;
-            background-color: #f9f9f9;
-            border-left: 3px solid #2196F3;
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+        }
+        .color-box {
+            width: 20px;
+            height: 20px;
+            margin-right: 5px;
+            border: 1px solid #ddd;
+        }
+        nav {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        nav a {
+            margin-right: 15px;
+            text-decoration: none;
+            color: #2196F3;
         }
         .form-group {
             margin-bottom: 15px;
@@ -60,7 +77,6 @@
         label {
             display: block;
             margin-bottom: 5px;
-            font-weight: bold;
         }
         input[type="text"] {
             width: 100%;
@@ -76,30 +92,17 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        button:hover {
-            background-color: #45a049;
-        }
-        .alert {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 4px;
-        }
-        .alert-success {
-            background-color: #dff0d8;
-            border: 1px solid #d6e9c6;
-            color: #3c763d;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <nav>
-            <a href="{{ route('maps.index') }}">Lista de Mapas</a> | 
+            <a href="{{ route('maps.index') }}">Lista de Mapas</a>
             <a href="{{ route('maps.create') }}">Criar Novo Mapa</a>
         </nav>
         
         @if(session('success'))
-            <div class="alert alert-success">
+            <div style="padding: 10px; background-color: #dff0d8; margin-bottom: 15px; border-radius: 4px;">
                 {{ session('success') }}
             </div>
         @endif

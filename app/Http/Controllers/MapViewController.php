@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Map;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class MapViewController extends Controller
 {
@@ -11,12 +12,6 @@ class MapViewController extends Controller
     {
         $maps = Map::all();
         return view('maps.index', compact('maps'));
-    }
-
-    public function show($id)
-    {
-        $map = Map::findOrFail($id);
-        return view('maps.show', compact('map'));
     }
 
     public function create()
@@ -29,31 +24,99 @@ class MapViewController extends Controller
             }
         }
         
-        $grid[3][4] = 1;
-        $grid[3][5] = 1;
-        $grid[4][5] = 1;
-        $grid[5][5] = 1;
-        $grid[10][10] = 2;
-        $grid[10][11] = 2;
-        $grid[11][10] = 2;
-        
         return view('maps.create', compact('grid'));
+    }
+
+    public function show($id)
+    {
+        $map = Map::findOrFail($id);
+        return view('maps.show', compact('map'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'grid' => 'required|array',
+            'grid' => 'required',
+            'origin' => 'nullable',
+            'destination' => 'nullable',
         ]);
+
+        Log::info('Dados recebidos:', $request->all());
+
+        $gridData = $validated['grid'];
+        if (is_string($gridData)) {
+            $gridData = json_decode($gridData, true);
+        }
+        
+        $origin = $validated['origin'] ?? null;
+        if (is_string($origin) && !empty($origin)) {
+            $origin = json_decode($origin, true);
+        }
+        
+        $destination = $validated['destination'] ?? null;
+        if (is_string($destination) && !empty($destination)) {
+            $destination = json_decode($destination, true);
+        }
 
         $map = new Map();
         $map->name = $validated['name'];
         $map->data = [
-            'matrix' => $validated['grid']
+            'matrix' => $gridData,
+            'origin' => $origin,
+            'destination' => $destination
         ];
         $map->save();
 
+        Log::info('Mapa salvo com ID: ' . $map->id);
+
         return redirect()->route('maps.show', $map->id)->with('success', 'Mapa criado com sucesso!');
+    }
+    
+    public function edit($id)
+    {
+        $map = Map::findOrFail($id);
+        $grid = $map->data['matrix'] ?? [];
+        $origin = $map->data['origin'] ?? null;
+        $destination = $map->data['destination'] ?? null;
+        
+        return view('maps.edit', compact('map', 'grid', 'origin', 'destination'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'origin' => 'nullable',
+            'destination' => 'nullable',
+            'path' => 'nullable',
+        ]);
+        
+        $map = Map::findOrFail($id);
+        
+        $origin = $validated['origin'] ?? null;
+        if (is_string($origin) && !empty($origin)) {
+            $origin = json_decode($origin, true);
+        }
+        
+        $destination = $validated['destination'] ?? null;
+        if (is_string($destination) && !empty($destination)) {
+            $destination = json_decode($destination, true);
+        }
+        
+        $path = $validated['path'] ?? null;
+        if (is_string($path) && !empty($path)) {
+            $path = json_decode($path, true);
+        }
+        
+        $data = $map->data;
+        $data['origin'] = $origin;
+        $data['destination'] = $destination;
+        $data['path'] = $path;
+        $map->data = $data;
+        
+        $map->save();
+        
+        return redirect()->route('maps.show', $map->id)
+                         ->with('success', 'Mapa atualizado com sucesso!');
     }
 }
