@@ -8,8 +8,10 @@
         <div class="legend-item"><div class="color-box cell-1"></div> Casa (1)</div>
         <div class="legend-item"><div class="color-box cell-2"></div> Prédio (2)</div>
         <div class="legend-item"><div class="color-box cell-3"></div> Praça (3)</div>
+        <div class="legend-item"><div class="color-box cell-4"></div> Engarrafamento (4)</div>
         <div class="legend-item"><div class="color-box origin-point"></div> Origem</div>
         <div class="legend-item"><div class="color-box destination-point"></div> Destino</div>
+        <div class="legend-item"><div class="color-box path-cell"></div> Caminho</div>
     </div>
     
     <div class="grid-container">
@@ -27,7 +29,6 @@
                 @php
                     $cellClasses = ['grid-cell', 'cell-' . $matrix[$i][$j]];
                     
-                    // Verificar se a célula está no caminho
                     $isInPath = false;
                     foreach ($path as $point) {
                         if ($point[0] == $i && $point[1] == $j) {
@@ -40,7 +41,6 @@
                         $cellClasses[] = 'path-cell';
                     }
                     
-                    // Adicionar classes para origem e destino
                     if ($origin && $origin[0] == $i && $origin[1] == $j) {
                         $cellClasses[] = 'origin-point';
                     }
@@ -101,6 +101,20 @@
         }
         .cell-3 {
             background-color: #FFC107; 
+        }
+        .cell-4 {
+            background-color: #F44336; 
+            position: relative;
+        }
+        .cell-4::after {
+            content: "!";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            font-size: 12px;
+            color: white;
         }
         .origin-point {
             background-color: #8BC34A !important; 

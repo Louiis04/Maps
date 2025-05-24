@@ -89,6 +89,7 @@ class MapViewController extends Controller
             'origin' => 'nullable',
             'destination' => 'nullable',
             'path' => 'nullable',
+            'grid' => 'nullable',
         ]);
         
         $map = Map::findOrFail($id);
@@ -108,10 +109,20 @@ class MapViewController extends Controller
             $path = json_decode($path, true);
         }
         
+        $grid = $validated['grid'] ?? null;
+        if (is_string($grid) && !empty($grid)) {
+            $grid = json_decode($grid, true);
+        }
+        
         $data = $map->data;
         $data['origin'] = $origin;
         $data['destination'] = $destination;
         $data['path'] = $path;
+        
+        if ($grid) {
+            $data['matrix'] = $grid;
+        }
+        
         $map->data = $data;
         
         $map->save();

@@ -8,8 +8,10 @@
         <div class="legend-item"><div class="color-box cell-1"></div> Casa (1)</div>
         <div class="legend-item"><div class="color-box cell-2"></div> Prédio (2)</div>
         <div class="legend-item"><div class="color-box cell-3"></div> Praça (3)</div>
+        <div class="legend-item"><div class="color-box cell-4"></div> Engarrafamento (4)</div>
         <div class="legend-item"><div class="color-box origin-point"></div> Origem</div>
         <div class="legend-item"><div class="color-box destination-point"></div> Destino</div>
+        <div class="legend-item"><div class="color-box path-cell"></div> Caminho</div>
     </div>
     
     <div class="controls">
@@ -17,6 +19,10 @@
             <button type="button" onclick="setMode('origin')" class="btn btn-mode active" id="origin-mode">Definir Origem</button>
             <button type="button" onclick="setMode('destination')" class="btn btn-mode" id="destination-mode">Definir Destino</button>
             <button type="button" onclick="findPath()" class="btn btn-mode btn-find-path" id="find-path">Encontrar Caminho</button>
+        </div>
+        <div class="btn-group" style="margin-top: 10px;">
+            <button type="button" onclick="toggleTraffic()" class="btn btn-mode btn-traffic" id="toggle-traffic">Iniciar Engarrafamentos</button>
+            <span id="traffic-status" style="margin-left: 10px; font-size: 14px; color: #666;">Engarrafamentos: Desativados</span>
         </div>
         <p class="mode-info" id="current-mode">Modo atual: Definir Origem</p>
         <p>Clique em uma célula do mapa para definir o ponto.</p>
@@ -28,12 +34,24 @@
                 @php
                     $cellClasses = ['grid-cell', 'cell-' . $grid[$i][$j]];
                     
-                    // Adicionar classes para origem e destino existentes
                     if ($origin && $origin[0] == $i && $origin[1] == $j) {
                         $cellClasses[] = 'origin-point';
                     }
                     if ($destination && $destination[0] == $i && $destination[1] == $j) {
                         $cellClasses[] = 'destination-point';
+                    }
+                    
+                    $path = $map->data['path'] ?? [];
+                    $isInPath = false;
+                    foreach ($path as $point) {
+                        if ($point[0] == $i && $point[1] == $j) {
+                            $isInPath = true;
+                            break;
+                        }
+                    }
+                    
+                    if ($isInPath) {
+                        $cellClasses[] = 'path-cell';
                     }
                 @endphp
                 
@@ -53,6 +71,7 @@
         <input type="hidden" id="origin-data" name="origin" value="{{ json_encode($origin) }}">
         <input type="hidden" id="destination-data" name="destination" value="{{ json_encode($destination) }}">
         <input type="hidden" id="path-data" name="path" value="{{ json_encode($map->data['path'] ?? []) }}">
+        <input type="hidden" id="grid-data" name="grid" value="{{ json_encode($grid) }}">
         
         <div class="actions">
             <a href="{{ route('maps.show', $map->id) }}" class="btn btn-cancel">Cancelar</a>
@@ -66,6 +85,8 @@
         let grid = @json($grid);
         let path = @json($map->data['path'] ?? []);
         let currentMode = 'origin'; 
+        let trafficInterval = null;
+        let trafficActive = false;
         
         if (path && path.length > 0) {
             displayPath(path);
@@ -136,6 +157,84 @@
             if (cell) {
                 cell.classList.remove(className);
             }
+        }
+        
+        function updateCellType(row, col, type) {
+            const cell = document.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`);
+            
+            cell.classList.remove('cell-0', 'cell-1', 'cell-2', 'cell-3', 'cell-4');
+            
+            cell.classList.add(`cell-${type}`);
+            
+            grid[row][col] = type;
+            
+            document.getElementById('grid-data').value = JSON.stringify(grid);
+        }
+        
+        function toggleTraffic() {
+            if (trafficActive) {
+                clearInterval(trafficInterval);
+                trafficActive = false;
+                document.getElementById('toggle-traffic').textContent = 'Iniciar Engarrafamentos';
+                document.getElementById('traffic-status').textContent = 'Engarrafamentos: Desativados';
+            } else {
+                trafficActive = true;
+                document.getElementById('toggle-traffic').textContent = 'Parar Engarrafamentos';
+                document.getElementById('traffic-status').textContent = 'Engarrafamentos: Ativos';
+                
+                trafficInterval = setInterval(generateRandomTraffic, 3000);
+            }
+        }
+        
+        function generateRandomTraffic() {
+            const rows = grid.length;
+            const cols = grid[0].length;
+            
+            const streetCells = [];
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    if (grid[i][j] === 0) {
+                        if (!(origin && origin[0] === i && origin[1] === j) && 
+                            !(destination && destination[0] === i && destination[1] === j)) {
+                            
+                            let isInPath = false;
+                            for (let k = 0; k < path.length; k++) {
+                                if (path[k][0] === i && path[k][1] === j) {
+                                    isInPath = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (!isInPath) {
+                                streetCells.push([i, j]);
+                            }
+                        }
+                    } else if (grid[i][j] === 4) {
+                        if (Math.random() < 0.5) {
+                            updateCellType(i, j, 0);
+                        }
+                    }
+                }
+            }
+            
+            const numTraffic = Math.min(5, streetCells.length); 
+            
+            for (let i = 0; i < numTraffic; i++) {
+                if (streetCells.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * streetCells.length);
+                    const [row, col] = streetCells[randomIndex];
+                    
+                    updateCellType(row, col, 4);
+                    
+                    streetCells.splice(randomIndex, 1);
+                }
+            }
+            
+            if (origin && destination && path.length > 0) {
+                findPath();
+            }
+            
+            console.log('Engarrafamentos atualizados');
         }
         
         function findPath() {
@@ -221,7 +320,7 @@
                 
                 console.log(`Caminho encontrado com ${pathCells.length} células`);
             } else {
-                alert('Não foi possível encontrar um caminho entre a origem e o destino.');
+                alert('Não foi possível encontrar um caminho entre a origem e o destino. Talvez haja muitos engarrafamentos ou obstáculos bloqueando todas as rotas possíveis.');
                 console.log('Caminho não encontrado');
             }
         }
@@ -248,6 +347,12 @@
             path = [];
             document.getElementById('path-data').value = JSON.stringify(path);
         }
+        
+        window.addEventListener('beforeunload', function() {
+            if (trafficInterval) {
+                clearInterval(trafficInterval);
+            }
+        });
     </script>
     
     <style>
@@ -286,7 +391,7 @@
             opacity: 0.8;
         }
         .cell-0 {
-            background-color: #f0f0f0; 
+            background-color: #f0f0f0;
         }
         .cell-1 {
             background-color: #4CAF50; 
@@ -296,6 +401,20 @@
         }
         .cell-3 {
             background-color: #FFC107; 
+        }
+        .cell-4 {
+            background-color: #F44336;
+            position: relative;
+        }
+        .cell-4::after {
+            content: "!";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            font-size: 12px;
+            color: white;
         }
         .origin-point {
             background-color: #8BC34A !important; 
@@ -325,6 +444,20 @@
             font-size: 12px;
             color: white;
         }
+        .path-cell {
+            background-color: #FF9800 !important; 
+            position: relative;
+        }
+        .path-cell::after {
+            content: "•";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            font-size: 14px;
+            color: white;
+        }
         .controls {
             margin-bottom: 20px;
             background-color: #f9f9f9;
@@ -347,6 +480,20 @@
             background-color: #2196F3;
             color: white;
             border-color: #0b7dda;
+        }
+        .btn-find-path {
+            background-color: #FF5722;
+            color: white;
+        }
+        .btn-find-path:hover {
+            background-color: #E64A19;
+        }
+        .btn-traffic {
+            background-color: #673AB7;
+            color: white;
+        }
+        .btn-traffic:hover {
+            background-color: #5E35B1;
         }
         .mode-info {
             font-size: 14px;
@@ -374,27 +521,6 @@
         }
         .btn-save {
             background-color: #4CAF50;
-        }
-        .path-cell {
-            background-color: #FF9800 !important;
-            position: relative;
-        }
-        .path-cell::after {
-            content: "•";
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-weight: bold;
-            font-size: 14px;
-            color: white;
-        }
-        .btn-find-path {
-            background-color: #FF5722;
-            color: white;
-        }
-        .btn-find-path.active {
-            background-color: #E64A19;
         }
     </style>
 @endsection
