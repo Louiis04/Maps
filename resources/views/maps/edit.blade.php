@@ -67,7 +67,6 @@
         @csrf
         @method('PUT')
         
-        <!-- Campos ocultos para armazenar os dados -->
         <input type="hidden" id="origin-data" name="origin" value="{{ json_encode($origin) }}">
         <input type="hidden" id="destination-data" name="destination" value="{{ json_encode($destination) }}">
         <input type="hidden" id="path-data" name="path" value="{{ json_encode($map->data['path'] ?? []) }}">
@@ -182,6 +181,7 @@
                 document.getElementById('toggle-traffic').textContent = 'Parar Engarrafamentos';
                 document.getElementById('traffic-status').textContent = 'Engarrafamentos: Ativos';
                 
+                generateRandomTraffic();
                 trafficInterval = setInterval(generateRandomTraffic, 3000);
             }
         }
@@ -191,6 +191,8 @@
             const cols = grid[0].length;
             
             const streetCells = [];
+            const pathCells = [];
+            
             for (let i = 0; i < rows; i++) {
                 for (let j = 0; j < cols; j++) {
                     if (grid[i][j] === 0) {
@@ -201,6 +203,7 @@
                             for (let k = 0; k < path.length; k++) {
                                 if (path[k][0] === i && path[k][1] === j) {
                                     isInPath = true;
+                                    pathCells.push([i, j]);
                                     break;
                                 }
                             }
@@ -209,17 +212,31 @@
                                 streetCells.push([i, j]);
                             }
                         }
-                    } else if (grid[i][j] === 4) {
-                        if (Math.random() < 0.5) {
-                            updateCellType(i, j, 0);
-                        }
+                    } 
+                    else if (grid[i][j] === 4 && Math.random() < 0.3) {
+                        updateCellType(i, j, 0);
                     }
                 }
             }
             
-            const numTraffic = Math.min(5, streetCells.length); 
+            if (pathCells.length > 0 && Math.random() < 0.5) {
+                const numPathTraffic = Math.min(Math.floor(Math.random() * 2) + 1, pathCells.length);
+                
+                for (let i = 0; i < numPathTraffic; i++) {
+                    if (pathCells.length > 0) {
+                        const randomIndex = Math.floor(Math.random() * pathCells.length);
+                        const [row, col] = pathCells[randomIndex];
+                        
+                        updateCellType(row, col, 4);
+                        
+                        pathCells.splice(randomIndex, 1);
+                    }
+                }
+            }
             
-            for (let i = 0; i < numTraffic; i++) {
+            const numStreetTraffic = Math.min(3, streetCells.length); 
+            
+            for (let i = 0; i < numStreetTraffic; i++) {
                 if (streetCells.length > 0) {
                     const randomIndex = Math.floor(Math.random() * streetCells.length);
                     const [row, col] = streetCells[randomIndex];
@@ -230,7 +247,7 @@
                 }
             }
             
-            if (origin && destination && path.length > 0) {
+            if (origin && destination) {
                 findPath();
             }
             
@@ -248,52 +265,48 @@
             const rows = grid.length;
             const cols = grid[0].length;
             
-            const visited = [];
-            for (let i = 0; i < rows; i++) {
-                visited[i] = [];
-                for (let j = 0; j < cols; j++) {
-                    visited[i][j] = false;
-                }
-            }
+            const visited = Array(rows).fill().map(() => Array(cols).fill(false));
+            const prev = Array(rows).fill().map(() => Array(cols).fill(null));
+            const cost = Array(rows).fill().map(() => Array(cols).fill(Infinity));
             
-            const prev = [];
-            for (let i = 0; i < rows; i++) {
-                prev[i] = [];
-                for (let j = 0; j < cols; j++) {
-                    prev[i][j] = null;
-                }
-            }
-            
-            const directions = [
-                [-1, 0], [0, 1], [1, 0], [0, -1]
-            ];
+            const directions = [[-1, 0], [0, 1], [1, 0], [0, -1]];
             
             const queue = [];
-            let front = 0;  
             
-            queue.push(origin);
+            queue.push({point: origin, cost: 0});
             visited[origin[0]][origin[1]] = true;
+            cost[origin[0]][origin[1]] = 0;
             
             let foundPath = false;
             
-            while (front < queue.length) {
-                const current = queue[front];
-                front++;  
+            while (queue.length > 0) {
+                queue.sort((a, b) => a.cost - b.cost);
+                
+                const {point: current} = queue.shift();
                 
                 if (current[0] === destination[0] && current[1] === destination[1]) {
                     foundPath = true;
                     break;
                 }
                 
-                for (let i = 0; i < directions.length; i++) {
-                    const newRow = current[0] + directions[i][0];
-                    const newCol = current[1] + directions[i][1];
+                for (const [dx, dy] of directions) {
+                    const newRow = current[0] + dx;
+                    const newCol = current[1] + dy;
                     
                     if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols) {
-                        if (!visited[newRow][newCol] && grid[newRow][newCol] === 0) {
-                            visited[newRow][newCol] = true;
-                            prev[newRow][newCol] = current;
-                            queue.push([newRow, newCol]);
+                        if (grid[newRow][newCol] === 0 || grid[newRow][newCol] === 4) {
+                            const moveCost = grid[newRow][newCol] === 4 ? 3 : 1;
+                            const newCost = cost[current[0]][current[1]] + moveCost;
+                            
+                            if (newCost < cost[newRow][newCol]) {
+                                cost[newRow][newCol] = newCost;
+                                prev[newRow][newCol] = current;
+                                
+                                if (!visited[newRow][newCol]) {
+                                    visited[newRow][newCol] = true;
+                                    queue.push({point: [newRow, newCol], cost: newCost});
+                                }
+                            }
                         }
                     }
                 }
